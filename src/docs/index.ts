@@ -9,11 +9,6 @@ type RouteData = {
 }
 const RouteDefined: RouteData[] = [
   {
-    name: "Users",
-    route: "user",
-    service: []
-  },
-  {
     name: "Operators",
     route: "operator",
     service: []
