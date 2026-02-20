@@ -16,7 +16,9 @@ export const varConfig = {
 
 export const DatabaseTableList = {
   user_operators: "user_operators",
-
+  dashcam_devices: "dashcam_devices",
+  collection_lists: "collection_lists",
+  vehicle_lists: "vehicle_lists",
 
 
   user_admins: "user_admins",
@@ -27,7 +29,6 @@ export const DatabaseTableList = {
   trip_ratings: "trip_ratings",
   trip_requests: "trip_requests",
   trip_revenues: "trip_revenues",
-  opt_vehicle_lists: "opt_vehicle_lists",
   operator_vehicle_docs: "opt_vehicle_docs",
   operator_business_docs: "opt_business_docs",
   operator_rider_docs: "opt_rider_docs",

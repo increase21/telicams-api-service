@@ -5,9 +5,10 @@ import { ObjectPayload, PipelineQuery, PrivateMethodProps, SendDBQuery } from ".
 import { mongoose } from "../models/dbConnector";
 import { DatabaseTableList } from "../assets/var-config";
 import { UserOperatorModel, UserOperatorTypes } from "../models/user-operators";
+import { DashcamDeviceModel, DashcamDeviceTypes } from "../models/opt-vehdevice";
 
-//========**************OPERATOR  SECTION***********=========================/
 export class OperatorAccountService {
+  //========**************OPERATOR  SECTION***********=========================/
   //update operator details
   static async GetOperatorAccount({ res, req, customData: userData }: PrivateMethodProps) {
     let optID = userData.account_type === "team" ? userData.operator_id : undefined
@@ -366,6 +367,10 @@ export class OperatorAccountService {
     //output the response
     return helpers.outputSuccess(res)
   }
+
+
+
+  //========**************TEAM  SECTION***********=========================/
 
   //create team member
   static async CreateTeam({ body, id, req, res, customData: userData }: PrivateMethodProps) {

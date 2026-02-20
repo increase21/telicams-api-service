@@ -28,4 +28,6 @@ export class OperatorAccountController extends SimpleNodeJsController {
       id: { get: "optional", delete: "required", put: "required", patch: "required" },
     })
   }
+
+
 }
