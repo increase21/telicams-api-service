@@ -32,7 +32,7 @@ jobs:
         run: |
           ssh ${{ secrets.DEV_SERVER_USER }}@${{ secrets.DEV_SERVER_HOST }} << 'EOF'
             set -e  # Exit if any command fails
-            myPath="/var/_services/telicamz-api"
+            myPath="/var/_services/staging/telicamz-api"
             pm2Name="telicamz-api"
             mkdir -p $myPath
             cd $myPath
