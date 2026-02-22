@@ -10,6 +10,7 @@ import {
 import { ResponseObject } from "@increase21/simplenodejs/dist/typings/general"
 import { DashcamDeviceModel } from "../models/device-lists"
 import { DashcamActivityLogModel } from "../models/device-data"
+import { OperatorLogModel } from "../models/activity-logs"
 
 export const GlobalConnectedDevices: Map<string, ConnectedDeviceValues> = new Map() //for storing connected devices and their auth_id
 
@@ -348,14 +349,14 @@ export default class helpers {
     await DashcamActivityLogModel.create(data).catch(e => ({ error: e }))
   }
 
-  // //for logging operator activity
-  // static async logOperatorActivity(data: {
-  //   operation: string, auth_id: string, body: string, data: ObjectPayload, operator_id: string,
-  // }): Promise<void> {
-  //   //if there's no valid data
-  //   if (!data.auth_id || !data.body || !data.operator_id || !data.operation) return
-  //   await OperatorLogModel.create(data).catch(e => ({ error: e }))
-  // }
+  //for logging operator activity
+  static async logOperatorActivity(data: {
+    operation: string, auth_id: string, body: string, data: ObjectPayload, operator_id: string,
+  }): Promise<void> {
+    //if there's no valid data
+    if (!data.auth_id || !data.body || !data.operator_id || !data.operation) return
+    await OperatorLogModel.create(data).catch(e => ({ error: e }))
+  }
 
   // static async logAdminActivity(data: { operation: string, auth_id: string, body: string, data: ObjectPayload }): Promise<void> {
   //   //if there's no valid data

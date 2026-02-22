@@ -5,7 +5,6 @@ import { ObjectPayload, PipelineQuery, PrivateMethodProps, SendDBQuery } from ".
 import { mongoose } from "../models/dbConnector";
 import { DatabaseTableList } from "../assets/var-config";
 import { UserOperatorModel, UserOperatorTypes } from "../models/user-operators";
-import { DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
 
 export class OperatorAccountService {
   //========**************OPERATOR  SECTION***********=========================/
@@ -393,6 +392,17 @@ export class OperatorAccountService {
       queryBuilder.account_type = "team"
       queryBuilder.business_type = 1
       queryBuilder.operator_id = new mongoose.Types.ObjectId(userData.operator_id)
+      //check if the account is not approved yet
+      let getData: SendDBQuery = await UserOperatorModel.findById(userData.auth_id).catch(e => ({ error: e }))
+      //check for error
+      if (getData && getData.error) {
+        console.log("Error getting operator account to create team member", getData.error);
+        return helpers.outputError(res, 500);
+      }
+      //if no data found or the account is not active
+      if (!getData || getData.account_status !== 1) {
+        return helpers.outputError(res, null, "Only approved operator account can add team members");
+      }
     }
 
     if (fullName) {

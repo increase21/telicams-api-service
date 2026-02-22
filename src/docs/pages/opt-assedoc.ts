@@ -6,8 +6,8 @@ optAssets.add_new_vehicle = {
   title: "Add New Vehicle",
   header: "Header-> Authorization: Bearer {{token}}",
   sidebar: "Add New Vehicle",
-  comment: "For Update, use PUT with the vehicleID in the URL. For bulk upload, set the 'component' query parameter to 'bulk-upload' and provide a CSV file with the required vehicle details.",
-  method: "POST|PUT",
+  comment: "For Update, use POST with the vehicleID in the URL. For bulk upload, set the 'component' query parameter to 'bulk-upload' and provide a CSV file with the required vehicle details.",
+  method: "POST",
   url: "http(s)://base-url/operators/assets/vehicle-lists",
   doc_header: {
     field: "Field",
@@ -64,8 +64,8 @@ optAssets.update_vehicle_status = {
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Update Veh Status",
   comment: "",
-  method: "PATCH",
-  url: "http(s)://base-url/operators/assets/vehicle-lists/{{vehicle_id}}?component=status",
+  method: "PUT",
+  url: "http(s)://base-url/operators/assets/vehicle-lists/",
   doc_header: {
     field: "Field",
     type: "Type",
@@ -73,6 +73,12 @@ optAssets.update_vehicle_status = {
     description: "Description"
   },
   docs: [
+    {
+      field: "vehicle_ids",
+      type: "Array",
+      status: "required",
+      description: "Array of vehicle IDs to update",
+    },
     {
       field: "status",
       type: "String",
@@ -83,7 +89,7 @@ optAssets.update_vehicle_status = {
       field: "reason",
       type: "String",
       status: "optional",
-      description: "",
+      description: "Reason for updating the vehicle status ",
     },
   ],
   response: `   {
@@ -174,81 +180,13 @@ optAssets.get_vehicle = {
    }`
 }
 
-optAssets.assign_vehicle = {
-  title: "Assign Device to Vehicle",
-  header: "Header-> Authorization: Bearer token,",
-  sidebar: "Assign Device",
-  comment: "",
-  method: "PATCH",
-  url: "http(s)://base-url/operators/assets/vehicle-lists/{{vehicle_id}}?component=assign",
-  doc_header: {
-    field: "Field",
-    type: "Type",
-    status: "Status",
-    description: "Description"
-  },
-  docs: [
-    {
-      field: "device_id",
-      type: "String",
-      status: "required",
-      description: "",
-    },
-  ],
-  response: `   {
-      status: "ok",
-      data: {}
-   }`
-}
-
-optAssets.unassign_vehicle = {
-  title: "Unassign Device from Vehicle",
-  header: "Header-> Authorization: Bearer token,",
-  sidebar: "Unassign Device",
-  comment: "",
-  method: "PATCH",
-  url: "http(s)://base-url/operators/assets/vehicle-lists/{{vehicle_id}}?component=unassign",
-  doc_header: {
-    field: "Field",
-    type: "Type",
-    status: "Status",
-    description: "Description"
-  },
-  docs: [],
-  response: `   {
-      status: "ok",
-      data: {}
-   }`
-}
-
 optAssets.delete_vehicle = {
   title: "Delete Vehicle",
   header: "Header-> Authorization: Bearer token,",
   sidebar: "Delete Vehicle",
   comment: "",
-  method: "DELETE",
-  url: "http(s)://base-url/operators/assets/vehicle-lists/{{vehicle_id}}",
-  doc_header: {
-    field: "Field",
-    type: "Type",
-    status: "Status",
-    description: "Description"
-  },
-  docs: [],
-  response: `   {
-      status: "ok",
-      data: {}
-   }`
-}
-
-
-optAssets.add_new_device = {
-  title: "Add New Device",
-  header: "Header-> Authorization: Bearer {{token}}",
-  sidebar: "Add New Device",
-  comment: "For Update, use PUT with the deviceID in the URL. For bulk upload, set the 'component' query parameter to 'bulk-upload' and provide a CSV file with the required device details.",
-  method: "POST|PUT",
-  url: "http(s)://base-url/operators/assets/device-lists",
+  method: "PATCH",
+  url: "http(s)://base-url/operators/assets/vehicle-lists/",
   doc_header: {
     field: "Field",
     type: "Type",
@@ -257,22 +195,10 @@ optAssets.add_new_device = {
   },
   docs: [
     {
-      field: "device_number",
-      type: "String",
+      field: "vehicle_ids",
+      type: "Array",
       status: "required",
-      description: "",
-    },
-    {
-      field: "device_model",
-      type: "String",
-      status: "required",
-      description: "",
-    },
-    {
-      field: "device_oem",
-      type: "String",
-      status: "required",
-      description: "",
+      description: "Array of vehicle IDs to delete",
     },
   ],
   response: `   {
@@ -281,13 +207,14 @@ optAssets.add_new_device = {
    }`
 }
 
-optAssets.update_device_status = {
-  title: "Update Device Status",
+
+optAssets.update_alarm_status = {
+  title: "Update Alarm",
   header: "Header-> Authorization: Bearer token,",
-  sidebar: "Update Device Status",
+  sidebar: "Update Alarm Status",
   comment: "",
-  method: "PATCH",
-  url: "http(s)://base-url/operators/assets/device-lists/{{device_id}}",
+  method: "PUT",
+  url: "http(s)://base-url/operators/assets/alarm-lists/",
   doc_header: {
     field: "Field",
     type: "Type",
@@ -295,17 +222,17 @@ optAssets.update_device_status = {
     description: "Description"
   },
   docs: [
+    {
+      field: "alarm_ids",
+      type: "Array",
+      status: "required",
+      description: "Array of alarm IDs to update",
+    },
     {
       field: "status",
       type: "String",
       status: "optional",
-      description: "1=Active | 2=Suspended",
-    },
-    {
-      field: "reason",
-      type: "String",
-      status: "optional",
-      description: "",
+      description: "0=unresolved | 1=resolved ",
     },
   ],
   response: `   {
@@ -314,13 +241,13 @@ optAssets.update_device_status = {
    }`
 }
 
-optAssets.get_device_list = {
-  title: "Get Device List",
+optAssets.get_alarm = {
+  title: "Get Alarm Data",
   header: "Header-> Authorization: Bearer token,",
-  sidebar: "Get Device List",
+  sidebar: "Get Alarm",
   comment: "",
   method: "GET",
-  url: "http(s)://base-url/operators/assets/device-lists/{device_id}",
+  url: "http(s)://base-url/operators/assets/alarm-lists/{alarm_id}",
   doc_header: {
     field: "Field",
     type: "Type",
@@ -332,19 +259,31 @@ optAssets.get_device_list = {
       field: "q",
       type: "String",
       status: "optional",
-      description: "Search device number",
+      description: "Search alarm reference or vehicle plate number",
     },
     {
       field: "status",
       type: "String",
       status: "optional",
-      description: "0=Pending | 1=Active | 2=Suspended by operator | 3=Decommissioned by admin",
+      description: "0=unresolved | 1=resolved",
     },
     {
-      field: "online",
+      field: "start_date",
       type: "String",
       status: "optional",
-      description: "0=Not online | 1=Online",
+      description: "",
+    },
+    {
+      field: "end_date",
+      type: "String",
+      status: "optional",
+      description: "",
+    },
+    {
+      field: "alarm_type",
+      type: "String",
+      status: "optional",
+      description: "",
     },
     {
       field: "page",
@@ -372,7 +311,32 @@ optAssets.get_device_list = {
    }`
 }
 
-
+optAssets.delete_alarm = {
+  title: "Delete Alarm",
+  header: "Header-> Authorization: Bearer token,",
+  sidebar: "Delete Alarm",
+  comment: "",
+  method: "PATCH",
+  url: "http(s)://base-url/operators/assets/alarm-lists/",
+  doc_header: {
+    field: "Field",
+    type: "Type",
+    status: "Status",
+    description: "Description"
+  },
+  docs: [
+    {
+      field: "alarm_ids",
+      type: "Array",
+      status: "required",
+      description: "Array of alarm IDs to delete",
+    },
+  ],
+  response: `   {
+      status: "ok",
+      data: {}
+   }`
+}
 
 
 optAssets.add_new_collection = {

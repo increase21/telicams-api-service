@@ -15,37 +15,22 @@ export const varConfig = {
 
 
 export const DatabaseTableList = {
-  user_operators: "user_operators",
   dashcam_devices: "dashcam_devices",
   collection_lists: "collection_lists",
   vehicle_lists: "vehicle_lists",
   dashcam_alarms: "dashcam_alarms",
   dashcam_activity_logs: "dashcam_logs",
   dashcam_locations: "dashcam_locations",
-
-  user_admins: "user_admins",
-  user_customers: "user_customers",
-  user_riders: "user_riders",
-  admin_activity_logs: "admin_activity_logs",
   operator_logs: "operator_logs",
-  trip_ratings: "trip_ratings",
-  trip_requests: "trip_requests",
-  trip_revenues: "trip_revenues",
-  operator_vehicle_docs: "opt_vehicle_docs",
-  operator_business_docs: "opt_business_docs",
-  operator_rider_docs: "opt_rider_docs",
-  opt_infractions: "opt_infractions",
-  admin_account_roles: "admin_account_roles",
-  admin_business_categories: "admin_business_cats",
-  admin_asset_lists: "admin_asset_lists",
-  admin_infraction_list: "admin_infraction_lists",
+  operator_teams: "operator_teams",
+  operator_roles: "operator_roles",
+  user_operators: "user_operators",
+  user_admins: "user_admins",
+  admin_activity_logs: "admin_logs",
   otp_requests: "otp_requests",
   message_requests: "message_requests",
-  user_alert_list: "user_alert_lists",
-  user_alert_statuses: "user_alert_statuses",
-  user_chats: "user_chats",
-  operator_teams: "opt_team_lists",
-  operator_roles: "opt_role_lists",
+
+
 }
 
 const serviceURL = {

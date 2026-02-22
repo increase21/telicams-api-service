@@ -47,6 +47,7 @@ export default class OperatorAuthController extends SimpleNodeJsController {
 
     let checkUser: SendDBQuery = await UserOperatorModel.findOne({ email: email }, null, { lean: true }).catch(e => ({ error: e }))
 
+    //if there's an error
     if (checkUser && checkUser.error) {
       console.log("Error on operator login", checkUser.error)
       return helpers.outputError(this.res, 500)
@@ -63,13 +64,14 @@ export default class OperatorAuthController extends SimpleNodeJsController {
 
     //check if a user is suspended
     if (checkUser.account_status === 2) {
-      return helpers.outputError(this.res, 401, "Your account has been suspended. Kindly contact support")
+      return helpers.outputError(this.res, 401, `Your account has been suspended. ${checkUser.account_type === "team" ? "Please contact your administrator for more information." : "Kindly contact support for more information."}`)
     }
 
     //JWT token
     let JWTData: JWTTokenPayload = {
       auth_id: checkUser._id,
       user_type: "operator",
+      account_type: checkUser.account_type,
       name: checkUser.business_name,
       operator_id: checkUser.account_type === "operator" ? checkUser._id : checkUser.operator_id
     }
@@ -81,11 +83,11 @@ export default class OperatorAuthController extends SimpleNodeJsController {
     checkUser.auth_id = JWTData.auth_id
     let signinToken = JWT.sign(JWTData, fileConfig.config.jwtSecret, { expiresIn: helpers.setJWTExpireTime() })
 
-    // helpers.logOperatorActivity({
-    //   auth_id: JWTData.auth_id, operator_id: JWTData.operator_id as string,
-    //   operation: "account-login", body: `Login to the portal`,
-    //   data: { id: String(JWTData.auth_id), email: email },
-    // }).catch(e => { })
+    helpers.logOperatorActivity({
+      auth_id: JWTData.auth_id, operator_id: JWTData.operator_id as string,
+      operation: "account-login", body: `Login to the portal`,
+      data: { id: String(JWTData.auth_id), email: email },
+    }).catch(e => { })
 
     return helpers.outputSuccess(this.res, { ...checkUser, token: signinToken })
   }
@@ -288,11 +290,11 @@ export default class OperatorAuthController extends SimpleNodeJsController {
       return helpers.outputError(this.res, null, helpers.errorText.failedToProcess);
     }
 
-    // helpers.logOperatorActivity({
-    //   auth_id: getData._id, operator_id: getData.operator_id || getData._id as string,
-    //   operation: "account-forgotpass", body: `Initiate forgot password process`,
-    //   data: { id: String(getData._id), email: email },
-    // }).catch(e => { })
+    helpers.logOperatorActivity({
+      auth_id: getData._id, operator_id: getData.operator_id || getData._id as string,
+      operation: "account-forgotpass", body: `Initiate forgot password process`,
+      data: { id: String(getData._id), email: email },
+    }).catch(e => { })
 
     return helpers.outputSuccess(this.res, fileConfig.config.env !== "live" ? { otp_code: otpCode } : {});
   }
@@ -408,11 +410,11 @@ export default class OperatorAuthController extends SimpleNodeJsController {
     //update the OTP to used
     await OtpRequestModel.findByIdAndUpdate(getOTPConfim._id, { $set: { status: 2 } }).catch(e => ({ error: e }))
 
-    // helpers.logOperatorActivity({
-    //   auth_id: updatePassword._id, operator_id: updatePassword.operator_id || updatePassword._id as string,
-    //   operation: "account-resetpass", body: `Reset password successfully`,
-    //   data: { id: String(updatePassword._id), email: email },
-    // }).catch(e => { })
+    helpers.logOperatorActivity({
+      auth_id: updatePassword._id, operator_id: updatePassword.operator_id || updatePassword._id as string,
+      operation: "account-resetpass", body: `Reset password successfully`,
+      data: { id: String(updatePassword._id), email: email },
+    }).catch(e => { })
 
     return helpers.outputSuccess(this.res)
   }

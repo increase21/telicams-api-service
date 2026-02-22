@@ -56,11 +56,11 @@ export class OperatorOtherService {
       return helpers.outputError(res, null, helpers.errorText.failedToProcess)
     }
 
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string,
-    //   operation: "create-collection", data: { id: String(createColl._id), name: createColl.name },
-    //   body: id ? `Updated collection - ${createColl.name}` : `Created a new collection - ${createColl.name}`
-    // }).catch(e => { })
+    helpers.logOperatorActivity({
+      auth_id: userData.auth_id, operator_id: optID as string,
+      operation: "create-collection", data: { id: String(createColl._id), name: createColl.name },
+      body: id ? `Updated collection - ${createColl.name}` : `Created a new collection - ${createColl.name}`
+    }).catch(e => { })
 
     return helpers.outputSuccess(res);
   }
@@ -147,6 +147,12 @@ export class OperatorOtherService {
 
     // TODO://remove the collection id from all the vehicles under this collection
     // TODO://remove all users on collection off
+    // //log activity
+    helpers.logOperatorActivity({
+      auth_id: userData.auth_id, operator_id: optID as string,
+      operation: "delete-collectionstatus", data: {},
+      body: `Deleted a collection - ${getCol.name}`
+    }).catch(e => { })
 
     return helpers.outputSuccess(res)
   }
@@ -173,7 +179,7 @@ export class OperatorOtherService {
     }
 
     let updateCol: SendDBQuery = await CollectionListModel.findOneAndUpdate({ _id: id, operator_id: optID },
-      { $set: { status: parseInt(status) } }, { new: true }).catch(e => ({ error: e }))
+      { $set: { status: parseInt(status) } }, { lean: true, new: true }).catch(e => ({ error: e }))
 
     if (updateCol && updateCol.error) {
       console.log("Error updating collection status", updateCol.error)
@@ -182,8 +188,19 @@ export class OperatorOtherService {
 
     if (!updateCol) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
 
+    // //log activity
+    helpers.logOperatorActivity({
+      auth_id: userData.auth_id, operator_id: optID as string,
+      operation: "update-collectionstatus", data: {},
+      body: `${status === "1" ? "Activated" : "Archived"} a collection - ${updateCol.name}`
+    }).catch(e => { })
+
     return helpers.outputSuccess(res)
 
   }
+
+  // static async AssignVehicleToCollection({ body, res, req, id, customData: userData }: PrivateMethodProps) { 
+  //   let 
+  // }
 
 }

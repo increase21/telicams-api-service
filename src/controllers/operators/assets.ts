@@ -11,7 +11,6 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
   }
 
 
-
   async deviceLists(id: string | undefined) {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
     return OperatorAssetService.GetDevices({
@@ -25,11 +24,10 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
     return this.__run({
       post: OperatorAssetService.AddVehicles,
-      put: OperatorAssetService.AddVehicles,
+      put: OperatorAssetService.SuspendedVehicles,
       get: OperatorAssetService.GetVehicles,
-      patch: OperatorAssetService.SuspendedVehicles,
-      delete: OperatorAssetService.DeleteVehicle,
-      id: { get: "optional", delete: "required", put: "required", patch: "required" },
+      patch: OperatorAssetService.DeleteVehicle,
+      id: { post: "optional", get: "optional" },
     })
   }
 
@@ -47,6 +45,12 @@ export default class OperatorVehicleController extends SimpleNodeJsController {
 
   async alarmLists(id: string | undefined) {
     if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
+    return this.__run({
+      get: OperatorAssetService.GetAlarmData,
+      put: OperatorAssetService.UpdateAlarmStatus,
+      patch: OperatorAssetService.DeleteAlarm,
+      id: { get: "optional" },
+    })
   }
 
 

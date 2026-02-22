@@ -3,8 +3,9 @@ import { ObjectPayload, PipelineQuery, PrivateMethodProps, SendDBQuery } from ".
 import { mongoose } from "../models/dbConnector";
 import { CollectionListModel, DashcamDeviceModel, DashcamDeviceTypes } from "../models/device-lists";
 import { OptVehicleListModel, OptVehicleListTypes } from "../models/opt-vehlists";
-import { DatabaseTableList, varConfig } from "../assets/var-config";
+import { DatabaseTableList } from "../assets/var-config";
 import { DashcamAlarmModel, DashcamAlarmTypes } from "../models/device-data";
+import { UserOperatorModel } from "../models/user-operators";
 
 export class OperatorAssetService {
 
@@ -118,6 +119,15 @@ export class OperatorAssetService {
       if (!plateNo) return helpers.outputError(res, null, "Plate number is required")
       if (!vehOEM) return helpers.outputError(res, null, "Vehicle OEM is required")
       if (!vehModel) return helpers.outputError(res, null, "Vehicle model is required")
+      //check if the account is not approved yet
+      let getData: SendDBQuery = await UserOperatorModel.findById(optID).catch(e => ({ error: e }))
+      //check for error
+      if (getData && getData.error) {
+        console.log("Error getting operator account to add vehicle", getData.error);
+        return helpers.outputError(res, 500);
+      }
+      //if no data found or the account is not active
+      if (!getData || getData.account_status !== 1) return helpers.outputError(res, null, "Only approved account can add vehicles");
       qBuilder.operator_id = new mongoose.Types.ObjectId(optID)
     }
 
@@ -218,14 +228,14 @@ export class OperatorAssetService {
       return helpers.outputError(res, null, helpers.errorText.failedToProcess)
     }
 
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string,
-    //   operation: "create-vehicle", data: {
-    //     id: String(createVehicle._id),
-    //     plate_number: (qBuilder.plate_number || createVehicle.plate_number)
-    //   },
-    //   body: id ? logMsg : `Created a new vehicle with plate number ${qBuilder.plate_number}`
-    // }).catch(e => { })
+    helpers.logOperatorActivity({
+      auth_id: userData.auth_id, operator_id: optID as string,
+      operation: "create-vehicle", data: {
+        id: String(createVehicle._id),
+        plate_number: (qBuilder.plate_number || createVehicle.plate_number)
+      },
+      body: id ? logMsg : `Created a new vehicle with plate number ${qBuilder.plate_number}`
+    }).catch(e => { })
 
 
     return helpers.outputSuccess(res);
@@ -366,7 +376,7 @@ export class OperatorAssetService {
     })
   }
 
-  static async GetVehicles({ query, body, id, res, customData: userData }: PrivateMethodProps) {
+  static async GetVehicles({ query, id, res, customData: userData }: PrivateMethodProps) {
     let q = helpers.getInputValueString(query, "q")
     let deviceAssigned = helpers.getInputValueString(query, "device_assigned")
     let status = helpers.getInputValueString(query, "status")
@@ -541,60 +551,94 @@ export class OperatorAssetService {
     return helpers.outputSuccess(res, getData)
   }
 
-  static async DeleteVehicle({ body, res, id, customData: userData }: PrivateMethodProps) {
+  static async DeleteVehicle({ res, body, customData: userData }: PrivateMethodProps) {
     let optID = helpers.getOperatorAuthID(userData)
-    //if there's no schedule data
-    let getData: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
-      _id: id, operator_id: optID
-    }, null, { lean: true }).catch(e => ({ error: e }))
+    let vehicleIDs = helpers.getInputValueArray(body, "vehicle_ids")
+    let isSyncReq = vehicleIDs.length <= 10
 
-    //if there's error
-    if (getData && getData.error) {
-      console.log("Error vehicle delete req operator", getData.error)
-      return helpers.outputError(res, 500)
+    //if there's no ID or array of IDs
+    if (!vehicleIDs || vehicleIDs.length === 0) {
+      return helpers.outputError(res, null, "Vehicle ID is required")
+    }
+    //if the ID greater than 100
+    if (vehicleIDs.length > 100) {
+      return helpers.outputError(res, null, "You can only delete up to 100 vehicles at once")
     }
 
-    if (!getData) return helpers.outputError(res, null, "Vehicle not found")
+    //if length request is less than 10, delete as sync, otherwise return and delete in background
+    if (!isSyncReq) helpers.outputSuccess(res, { msg: "Vehicle deletion is in progress. Refresh the page to see the updates." })
+    //remove duplicates
+    vehicleIDs = [...new Set(vehicleIDs)]
 
-    //if there's are users on the vehicle
-    if (getData.device_assigned || getData.device_id) {
-      return helpers.outputError(res, null, "All the assigned devices must be removed first.")
+    for (let vehID of vehicleIDs) {
+      //if the ID is not valid
+      if (!helpers.isInvalidID(vehID)) {
+        if (isSyncReq) {
+          return helpers.outputError(res, null, `Invalid vehicle ID ${vehID}`)
+        } else {
+          continue;
+        }
+      }
+      //if there's no schedule data
+      let getData: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
+        _id: vehID, operator_id: optID
+      }, null, { lean: true }).catch(e => ({ error: e }))
+
+      //if there's error
+      if (getData && getData.error) {
+        if (isSyncReq) {
+          return helpers.outputError(res, 500)
+        } else { continue; }
+      }
+
+      if (!getData) {
+        if (isSyncReq) {
+          return helpers.outputError(res, null, "Vehicle not found")
+        } else {
+          continue;
+        }
+      }
+
+      let deleteData: SendDBQuery = await OptVehicleListModel.findByIdAndDelete(vehID).catch((e) => ({ error: e }));
+
+      //check for error
+      if (!deleteData || deleteData.error) {
+        if (isSyncReq) {
+          return helpers.outputError(res, 500)
+        } else {
+          continue;
+        }
+      }
+      //log activity
+      helpers.logOperatorActivity({
+        auth_id: userData.auth_id, operator_id: optID as string,
+        operation: "delete-vehicle", data: { id: String(getData._id), plate_number: getData.plate_number },
+        body: `Deleted ${getData.plate_number} vehicle from the system`
+      }).catch(e => { })
     }
 
-    let deleteData: SendDBQuery = await OptVehicleListModel.findByIdAndDelete(id).catch((e) => ({ error: e }));
-
-    //check for error
-    if (deleteData && deleteData.error) {
-      console.log("Error deleting operator vehicle", deleteData.error)
-      return helpers.outputError(res, 500)
-    }
-
-    if (!deleteData) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-
-    //remove all related documents
-    // await OptVehicleDocModel.deleteMany({ vehicle_id: new mongoose.Types.ObjectId(id) }).catch(() => null);
-
-    // //log activity
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string,
-    //   operation: "delete-vehicle", data: { id: String(getData._id), plate_number: getData.plate_number },
-    //   body: `Deleted ${getData.plate_number} vehicle from the system`
-    // }).catch(e => { })
-
-    return helpers.outputSuccess(res)
+    if (!res.headersSent) return helpers.outputSuccess(res, { msg: "Vehicle(s) deleted successfully" });
   }
 
-  static async SuspendedVehicles({ body, res, id, customData: userData }: PrivateMethodProps) {
+  static async SuspendedVehicles({ body, res, customData: userData }: PrivateMethodProps) {
     let status = helpers.getInputValueString(body, "status")
     let reason = helpers.getInputValueString(body, "reason")
+    let vehicleIDs = helpers.getInputValueArray(body, "vehicle_ids")
     let optID = helpers.getOperatorAuthID(userData)
     let qBuilder = {} as OptVehicleListTypes
+    let isSyncReq = vehicleIDs.length <= 10
 
-    if (!status) return helpers.outputError(res, null, "Status is required")
-
-    if (!['1', '2'].includes(status)) {
-      return helpers.outputError(res, null, "Invalid vehicle status")
+    //if there's no ID or array of IDs
+    if (!vehicleIDs || vehicleIDs.length === 0) {
+      return helpers.outputError(res, null, "Vehicle ID is required")
     }
+    //if the ID greater than 100
+    if (vehicleIDs.length > 100) {
+      return helpers.outputError(res, null, "You can only perform this action on up to 100 vehicles at once")
+    }
+    //if the status is not provided
+    if (!status) return helpers.outputError(res, null, "Status is required")
+    if (!['1', '2'].includes(status)) return helpers.outputError(res, null, "Invalid vehicle status")
 
     if (status === '2') {
       //if there's no suspend reason
@@ -612,49 +656,54 @@ export class OperatorAssetService {
       qBuilder.suspend_reason = reason
     }
 
-    //getting the vehicle data
-    let getVeh: SendDBQuery<OptVehicleListTypes> = await OptVehicleListModel.findOne({
-      _id: id, operator_id: optID
-    }).lean().catch(e => ({ error: e }))
+    //if length request is less than 10, delete as sync, otherwise return and delete in background
+    if (!isSyncReq) helpers.outputSuccess(res, { msg: "Action is in progress. Refresh the page to see the updates." })
 
-    //check for error
-    if (getVeh && getVeh.error) {
-      console.log("Error getting vehicle for suspend", getVeh.error)
-      return helpers.outputError(res, 500)
+    //remove duplicates
+    vehicleIDs = [...new Set(vehicleIDs)]
+
+    for (let vehID of vehicleIDs) {
+      //if the ID is not valid
+      if (!helpers.isInvalidID(vehID)) {
+        if (isSyncReq) {
+          return helpers.outputError(res, null, `Invalid vehicle ID ${vehID}`)
+        } else {
+          continue;
+        }
+      }
+
+      let updateStatus: SendDBQuery = await OptVehicleListModel.findOneAndUpdate({ _id: vehID, operator_id: optID },
+        { $set: qBuilder }, { new: true }).catch(e => ({ error: e }))
+
+      //check for error
+      if (updateStatus && updateStatus.error) {
+        if (isSyncReq) {
+          return helpers.outputError(res, 500)
+        } else {
+          continue;
+        }
+      }
+      //if the query does not execute
+      if (!updateStatus) {
+        if (isSyncReq) {
+          return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+        } else {
+          continue;
+        }
+      }
+      // //log activity
+      helpers.logOperatorActivity({
+        auth_id: userData.auth_id, operator_id: optID as string,
+        operation: "update-vehicle", data: { id: String(updateStatus._id), plate_number: updateStatus.plate_number },
+        body: `${status === "1" ? "Activated" : "Suspended"} ${updateStatus.plate_number} vehicle`
+      }).catch(e => { })
     }
 
-    if (!getVeh) return helpers.outputError(res, null, "Vehicle not found")
-
-    //if the vehicle is under suspension by the admin
-    if (getVeh.status === 3) {
-      return helpers.outputError(res, null, "This vehicle is suspended by the admin. Contact the admin for more info")
-    }
-
-    let updateStatus: SendDBQuery = await OptVehicleListModel.findByIdAndUpdate(id, { $set: qBuilder },
-      { new: true }).catch(e => ({ error: e }))
-
-    //check for error
-    if (updateStatus && updateStatus.error) {
-      console.log("Error updating vehicle status by operator", updateStatus.error)
-      return helpers.outputError(res, 500)
-    }
-    //if the query does not execute
-    if (!updateStatus) {
-      return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-    }
-
-    // //log activity
-    // helpers.logOperatorActivity({
-    //   auth_id: userData.auth_id, operator_id: optID as string,
-    //   operation: "update-vehicle", data: { id: String(updateStatus._id), plate_number: updateStatus.plate_number },
-    //   body: `${status === "1" ? "Activated" : "Suspended"} ${updateStatus.plate_number} vehicle`
-    // }).catch(e => { })
-
-    return helpers.outputSuccess(res);
+    if (!res.headersSent) return helpers.outputSuccess(res, { msg: "Action completed successfully" });
   }
 
   //========**************ALARM SECTION***********=========================/
-  static async GetAlarmData({ query, body, id, res, req, customData: userData }: PrivateMethodProps) {
+  static async GetAlarmData({ query, id, res, customData: userData }: PrivateMethodProps) {
     let q = helpers.getInputValueString(query, "q")
     let status = helpers.getInputValueString(query, "status")
     let startDate = helpers.getInputValueString(query, "start_date")
@@ -755,7 +804,7 @@ export class OperatorAssetService {
       { $limit: pageItem.data.item_per_page },
       {
         $lookup: {
-          from: DatabaseTableList.operator_vehicle_docs,
+          from: DatabaseTableList.vehicle_lists,
           let: { vehID: "$vehicle_id" },
           pipeline: [
             { $match: { $expr: { $eq: ["$_id", "$$vehID"] } }, },
@@ -816,43 +865,132 @@ export class OperatorAssetService {
 
   static async UpdateAlarmStatus({ body, res, id, customData: userData }: PrivateMethodProps) {
     let status = helpers.getInputValueString(body, "status")
+    let alarmIDs = helpers.getInputValueArray(body, "alarm_ids")
     let optID = helpers.getOperatorAuthID(userData)
+    let isSyncReq = alarmIDs.length <= 10
+
+    //if there's no ID or array of IDs
+    if (!alarmIDs || alarmIDs.length === 0) {
+      return helpers.outputError(res, null, "Alarm ID is required")
+    }
+
+    //if the ID greater than 100
+    if (alarmIDs.length > 100) {
+      return helpers.outputError(res, null, "You can only perform this action on up to 100 alarms at once")
+    }
 
     if (!status) return helpers.outputError(res, null, "Status is required")
-
     if (!['0', '1'].includes(status)) return helpers.outputError(res, null, "Invalid alarm status")
 
-    let updateStatus: SendDBQuery = await DashcamAlarmModel.findOneAndUpdate({ _id: id, operator_id: optID },
-      { $set: { status: parseInt(status) } }, { new: true }).catch(e => ({ error: e }))
+    //if length request is less than 10, delete as sync, otherwise return and delete in background
+    if (!isSyncReq) helpers.outputSuccess(res, { msg: "Action is in progress. Refresh the page to see the updates." })
 
-    //check for error
-    if (updateStatus && updateStatus.error) {
-      console.log("Error updating alarm status by operator", updateStatus.error)
-      return helpers.outputError(res, 500)
+    //remove duplicates
+    alarmIDs = [...new Set(alarmIDs)]
+
+    for (let alarmID of alarmIDs) {
+      if (!helpers.isInvalidID(alarmID)) {
+        if (isSyncReq) {
+          return helpers.outputError(res, null, `Invalid alarm ID ${alarmID}`)
+        } else {
+          continue;
+        }
+      }
+
+      let updateStatus: SendDBQuery<DashcamAlarmTypes> = await DashcamAlarmModel.findOneAndUpdate({ _id: alarmID, operator_id: optID },
+        { $set: { status: parseInt(status) } }, { new: true })
+        .populate("vehicle_id", "plate_number", OptVehicleListModel).catch(e => ({ error: e }))
+
+      //check for error
+      if (updateStatus && updateStatus.error) {
+        if (isSyncReq) {
+          return helpers.outputError(res, 500)
+        } else {
+          continue;
+        }
+      }
+
+      //if the query does not execute
+      if (!updateStatus) {
+        if (isSyncReq) {
+          return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+        } else {
+          continue;
+        }
+      }
+      // //log activity
+      helpers.logOperatorActivity({
+        auth_id: userData.auth_id, operator_id: optID as string,
+        operation: "update-alarmstatus", data: {
+          id: String((updateStatus.vehicle_id || {})._id),
+          plate_number: (updateStatus.vehicle_id || {}).plate_number
+        },
+        body: `${status === "1" ? "Resolved" : "Reopened"} alarm status for ${(updateStatus.vehicle_id || {}).plate_number} vehicle`
+      }).catch(e => { })
     }
 
-    //if the query does not execute
-    if (!updateStatus) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
-
-    return helpers.outputSuccess(res);
-
+    if (!res.headersSent) return helpers.outputSuccess(res, { msg: "Selected alarms have been updated successfully" });
   }
 
-  static async DeleteAlarm({ body, res, id, customData: userData }: PrivateMethodProps) {
+  static async DeleteAlarm({ res, body, customData: userData }: PrivateMethodProps) {
     let optID = helpers.getOperatorAuthID(userData)
+    let alarmIDs = helpers.getInputValueArray(body, "alarm_ids")
+    let isSyncReq = alarmIDs.length <= 10
 
-    let deleteData: SendDBQuery = await DashcamAlarmModel.findOneAndDelete({ _id: id, operator_id: optID }).catch((e) => ({ error: e }));
-
-    //check for error
-    if (deleteData && deleteData.error) {
-      console.log("Error deleting operator alarm", deleteData.error)
-      return helpers.outputError(res, 500)
+    //if there's no ID or array of IDs
+    if (!alarmIDs || alarmIDs.length === 0) {
+      return helpers.outputError(res, null, "Alarm ID is required")
+    }
+    //if the ID greater than 100
+    if (alarmIDs.length > 100) {
+      return helpers.outputError(res, null, "You can only delete up to 100 alarms at once")
     }
 
-    if (!deleteData) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+    //if length request is less than 10, delete as sync, otherwise return and delete in background
+    if (!isSyncReq) helpers.outputSuccess(res, { msg: "Alarm deletion is in progress. Refresh the page to see the updates." })
+    //remove duplicates
+    alarmIDs = [...new Set(alarmIDs)]
 
-    return helpers.outputSuccess(res)
+    for (let alarmID of alarmIDs) {
+      //if the ID is not valid
+      if (!helpers.isInvalidID(alarmID)) {
+        if (isSyncReq) {
+          return helpers.outputError(res, null, `Invalid alarm ID ${alarmID}`)
+        } else {
+          continue;
+        }
+      }
+      let deleteData: SendDBQuery = await DashcamAlarmModel.findOneAndDelete({ _id: alarmID, operator_id: optID })
+        .populate("vehicle_id", "plate_number", OptVehicleListModel).catch((e) => ({ error: e }));
 
+      //check for error
+      if (deleteData && deleteData.error) {
+        if (isSyncReq) {
+          return helpers.outputError(res, 500)
+        } else {
+          continue;
+        }
+      }
+
+      if (!deleteData) {
+        if (isSyncReq) {
+          return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+        } else {
+          continue;
+        }
+      }
+      // //log activity
+      helpers.logOperatorActivity({
+        auth_id: userData.auth_id, operator_id: optID as string,
+        operation: "delete-alarmstatus", data: {
+          id: String((deleteData.vehicle_id || {})._id),
+          plate_number: (deleteData.vehicle_id || {}).plate_number
+        },
+        body: `Deleted alarm record for ${(deleteData.vehicle_id || {}).plate_number} vehicle`
+      }).catch(e => { })
+    }
+
+    if (!res.headersSent) return helpers.outputSuccess(res, { msg: "Selected alarms have been deleted successfully" });
   }
 
 
