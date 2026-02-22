@@ -3,7 +3,7 @@ import helpers from "../../assets/helpers";
 import { fileConfig } from "../../assets/file-config";
 import { GatewayHookService } from "../../services/gateway-hooks";
 
-export class OperatorAccountController extends SimpleNodeJsController {
+export default class OperatorAccountController extends SimpleNodeJsController {
   protected __checkContext(): void {
     //get the authorization header
     let authHeader = this.req.headers['authorization'];
