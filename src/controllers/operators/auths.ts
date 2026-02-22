@@ -10,7 +10,7 @@ import { OtpRequestModel, OtpRequestTypes } from "../../models/otp-requests";
 import { varConfig } from "../../assets/var-config";
 
 
-export class OperatorAuthController extends SimpleNodeJsController {
+export default class OperatorAuthController extends SimpleNodeJsController {
 
   /** Public Method: Login operator */
   async login() {

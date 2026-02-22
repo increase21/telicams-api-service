@@ -17,10 +17,11 @@ app.registerPlugin(app => SimpleJsSecurityPlugin(app, {
   }
 }))
 
-app.use(SetDocumentationMiddleware())
-app.use(SetJWTAuthMiddleware())
+// app.use(SetDocumentationMiddleware())
+// app.use(SetJWTAuthMiddleware())
 app.use(SetBodyParser({ limit: "10mb" }))
 app.useError((err, req, res) => {
+  console.log(err)
   !err.code && console.log(err)
   if (res.headersSent) return
   res.status(err.code || 503).json({

@@ -3,7 +3,7 @@ import helpers from "../../assets/helpers";
 import { OperatorAssetService } from "../../services/opt-assets";
 import { OperatorOtherService } from "../../services/opt-others";
 
-export class OperatorVehicleController extends SimpleNodeJsController {
+export default class OperatorVehicleController extends SimpleNodeJsController {
   protected __checkContext(): void {
     if (this._custom_data.user_type !== "operator") {
       return helpers.outputError(this.res, null, "Not allowed to perform this action")
@@ -43,6 +43,10 @@ export class OperatorVehicleController extends SimpleNodeJsController {
       delete: OperatorOtherService.DeleteCollection,
       id: { get: "optional", delete: "required", put: "required", patch: "required" },
     })
+  }
+
+  async alarmLists(id: string | undefined) {
+    if (id && helpers.isInvalidID(id)) return helpers.outputError(this.res, 404)
   }
 
 

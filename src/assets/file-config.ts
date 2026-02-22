@@ -37,6 +37,7 @@ export const fileConfig = {
   port: 8000,
   noAuth: [
     "/zgateway/hooks/",
+    "/operators/auths/",
     "/zgateway/requests/",
   ]
 }

@@ -2,7 +2,7 @@ import { SimpleNodeJsController } from "@increase21/simplenodejs";
 import { OperatorAccountService } from "../../services/opt-account";
 import helpers from "../../assets/helpers";
 
-export class OperatorAccountController extends SimpleNodeJsController {
+export default class OperatorAccountController extends SimpleNodeJsController {
   protected __checkContext(): void {
     if (this._custom_data.user_type !== "operator") {
       return helpers.outputError(this.res, null, "Not allowed to perform this action")
