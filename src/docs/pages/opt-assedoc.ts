@@ -207,11 +207,74 @@ optAssets.delete_vehicle = {
    }`
 }
 
+optAssets.get_device_list = {
+  title: "Get Device List",
+  header: "Header-> Authorization: Bearer token,",
+  sidebar: "Get Device List",
+  comment: "",
+  method: "GET",
+  url: "http(s)://base-url/operators/assets/device-lists/{device_id}",
+  doc_header: {
+    field: "Field",
+    type: "Type",
+    status: "Status",
+    description: "Description"
+  },
+  docs: [
+    {
+      field: "q",
+      type: "String",
+      status: "optional",
+      description: "Search device number",
+    },
+    {
+      field: "assign_status",
+      type: "String",
+      status: "optional",
+      description: "1=unassigned | 2=Assigned",
+    },
+    {
+      field: "active_status",
+      type: "String",
+      status: "optional",
+      description: "1=active | 2=suspended",
+    },
+    {
+      field: "online",
+      type: "String",
+      status: "optional",
+      description: "0=Not online | 1=Online",
+    },
+    {
+      field: "page",
+      type: "String",
+      status: "optional",
+      description: "",
+    },
+    {
+      field: "item_per_page",
+      type: "String",
+      status: "optional",
+      description: "",
+    },
+    {
+      field: "component",
+      type: "String",
+      status: "optional",
+      description: "count | count-status",
+    },
+
+  ],
+  response: `   {
+      status: "ok",
+      data: {}
+   }`
+}
 
 optAssets.update_alarm_status = {
   title: "Update Alarm",
   header: "Header-> Authorization: Bearer token,",
-  sidebar: "Update Alarm Status",
+  sidebar: "Update Alarm",
   comment: "",
   method: "PUT",
   url: "http(s)://base-url/operators/assets/alarm-lists/",
@@ -474,11 +537,7 @@ const RouteContainer = [
       optAssets.add_new_vehicle,
       optAssets.update_vehicle_status,
       optAssets.get_vehicle,
-      optAssets.assign_vehicle,
-      optAssets.unassign_vehicle,
       optAssets.delete_vehicle,
-      optAssets.add_new_device,
-      optAssets.update_device_status,
       optAssets.get_device_list,
     ]
   },
@@ -490,6 +549,15 @@ const RouteContainer = [
       optAssets.update_collection_status,
       optAssets.get_collection_list,
       optAssets.delete_collection,
+    ]
+  },
+  {
+    name: "Alarm List",
+    route: "operator",
+    routes: [
+      optAssets.update_alarm_status,
+      optAssets.get_alarm,
+      optAssets.delete_alarm,
     ]
   },
 ]

@@ -136,7 +136,7 @@ adminAssetDoc.get_device_list = {
 export default [
   {
     name: "Miscellaneous",
-    route: "operator",
+    route: "admin",
     routes: Object.values(adminAssetDoc)
   },
 ];
