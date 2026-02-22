@@ -14,6 +14,12 @@ const Operators = new mongoose.Schema({
     maxlength: 120,
     required: true,
   },
+  email_status: {
+    type: String,
+    enum: [0, 1],
+    default: 0,
+    //0 => not confirmed, 1 => confirmed
+  },
   business_type: {
     type: String,
     enum: [1, 2],

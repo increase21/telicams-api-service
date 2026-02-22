@@ -168,7 +168,7 @@ export default class OperatorAuthController extends SimpleNodeJsController {
     }
 
     //check if email exists
-    const checkExisting: SendDBQuery = await UserOperatorModel.findOne({
+    const checkExisting: SendDBQuery<UserOperatorTypes> = await UserOperatorModel.findOne({
       $or: [{ email: email }, { business_name: { $regex: businessName, $options: 'i' } }]
     }, null, { lean: true }).catch(e => ({ error: e }));
 
@@ -177,7 +177,7 @@ export default class OperatorAuthController extends SimpleNodeJsController {
       return helpers.outputError(this.res, 500);
     }
 
-    if (checkExisting) {
+    if (checkExisting && checkExisting.email_status !== 0) {
       // Determine which field(s) caused the conflict
       if (checkExisting.email === email) {
         return helpers.outputError(this.res, null, "Email already exists");
@@ -189,14 +189,17 @@ export default class OperatorAuthController extends SimpleNodeJsController {
       return helpers.outputError(this.res, null, "Email or Business name already exists");
     }
 
-    //create the operator account
-    const createOp: SendDBQuery = await UserOperatorModel.create({
+    let qBuilder = {
       email: email, password: bcrypt.hashSync(password, 10),
       business_name: businessName, phone_number: phoneNumber,
       business_number: businessNumber, country: country, state: state,
       account_type: "operator", account_status: 0, fleet_size: parseInt(fleetSize),
       business_type: parseInt(businessType)
-    }).catch(e => ({ error: e }));
+    }
+
+    //create the operator account
+    const createOp: SendDBQuery = checkExisting ? await UserOperatorModel.findByIdAndUpdate(checkExisting._id, { $set: qBuilder },
+      { new: true, lean: true }).catch(e => ({ error: e })) : await UserOperatorModel.create(qBuilder).catch(e => ({ error: e }));
 
     if (createOp && createOp.error) {
       console.log("Error creating operator account", createOp.error)
@@ -207,27 +210,31 @@ export default class OperatorAuthController extends SimpleNodeJsController {
       return helpers.outputError(this.res, null, "Failed to create operator account. Kindly retry")
     }
 
-    //get the created user as object
-    let checkUser = createOp.toObject();
+    let dateNow = new Date();
+    dateNow.setMinutes(dateNow.getMinutes() + 10); //otp valid for 10 minutes
+    let otpCode = helpers.generateOTPCode(4);
 
-    //JWT token
-    let JWTData: JWTTokenPayload = {
-      auth_id: checkUser._id,
-      user_type: "operator",
-      name: checkUser.business_name,
-      operator_id: checkUser._id
+    //log the otp request
+    let saveRequest: SendDBQuery = await OtpRequestModel.create({
+      email: email, name: businessType === "1" ? businessName.split(" ")[0] : businessName,
+      pin: otpCode, expired_at: dateNow,
+      otp_type: varConfig.otp_type[1], subject: "Complete Your Registration",
+      status: 0, user_type: "operator",
+      data: { email: email, name: businessName, user_type: "operator" },
+    }).catch(e => ({ error: e }));
+
+    //check for error
+    if (saveRequest && saveRequest.error) {
+      console.log("Error creating registration OTP for operator", saveRequest.error)
+      return helpers.outputError(this.res, 500);
     }
 
-    //delete the user's password
-    delete checkUser.password
-    delete checkUser.__v
-    delete checkUser._id
-    checkUser.auth_id = JWTData.auth_id
+    //if failed to create the account
+    if (!saveRequest) {
+      return helpers.outputError(this.res, null, helpers.errorText.failedToProcess);
+    }
 
-    let signinToken = JWT.sign(JWTData, fileConfig.config.jwtSecret, { expiresIn: helpers.setJWTExpireTime() })
-
-
-    return helpers.outputSuccess(this.res, { ...checkUser, token: signinToken })
+    return helpers.outputSuccess(this.res, { email, otp_code: fileConfig.config.env !== "live" ? otpCode : undefined });
   }
 
   /** Public Method: To get a password reset code */
@@ -443,7 +450,7 @@ export default class OperatorAuthController extends SimpleNodeJsController {
     if (!getOTPConfim) return helpers.outputError(this.res, null, "Request not found");
 
     //if the OTP type is not registration
-    if (getOTPConfim.otp_type !== varConfig.otp_type[0]) {
+    if (![varConfig.otp_type[0], varConfig.otp_type[1]].includes(getOTPConfim.otp_type)) {
       return helpers.outputError(this.res, null, "Request not found");
     }
 
@@ -470,6 +477,11 @@ export default class OperatorAuthController extends SimpleNodeJsController {
 
     if (!updateOTP) {
       return helpers.outputError(this.res, null, helpers.errorText.failedToProcess)
+    }
+
+    //if the OTP is for registration, update the operator account to active
+    if (updateOTP.otp_type === varConfig.otp_type[1]) {
+      await UserOperatorModel.findOneAndUpdate({ email: email, email_status: 0 }, { $set: { email_status: 1 } }).catch(e => ({ error: e }))
     }
 
     return helpers.outputSuccess(this.res)

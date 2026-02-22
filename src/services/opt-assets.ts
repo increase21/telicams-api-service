@@ -814,4 +814,46 @@ export class OperatorAssetService {
     return helpers.outputSuccess(res, getData);
   }
 
+  static async UpdateAlarmStatus({ body, res, id, customData: userData }: PrivateMethodProps) {
+    let status = helpers.getInputValueString(body, "status")
+    let optID = helpers.getOperatorAuthID(userData)
+
+    if (!status) return helpers.outputError(res, null, "Status is required")
+
+    if (!['0', '1'].includes(status)) return helpers.outputError(res, null, "Invalid alarm status")
+
+    let updateStatus: SendDBQuery = await DashcamAlarmModel.findOneAndUpdate({ _id: id, operator_id: optID },
+      { $set: { status: parseInt(status) } }, { new: true }).catch(e => ({ error: e }))
+
+    //check for error
+    if (updateStatus && updateStatus.error) {
+      console.log("Error updating alarm status by operator", updateStatus.error)
+      return helpers.outputError(res, 500)
+    }
+
+    //if the query does not execute
+    if (!updateStatus) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+
+    return helpers.outputSuccess(res);
+
+  }
+
+  static async DeleteAlarm({ body, res, id, customData: userData }: PrivateMethodProps) {
+    let optID = helpers.getOperatorAuthID(userData)
+
+    let deleteData: SendDBQuery = await DashcamAlarmModel.findOneAndDelete({ _id: id, operator_id: optID }).catch((e) => ({ error: e }));
+
+    //check for error
+    if (deleteData && deleteData.error) {
+      console.log("Error deleting operator alarm", deleteData.error)
+      return helpers.outputError(res, 500)
+    }
+
+    if (!deleteData) return helpers.outputError(res, null, helpers.errorText.failedToProcess)
+
+    return helpers.outputSuccess(res)
+
+  }
+
+
 }
